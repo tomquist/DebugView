@@ -26,6 +26,10 @@ public struct DebugViewTransformation {
     public struct Edge {
         public let sourcePosition: Int?
         public let targetPosition: Int
+        public init(sourcePosition: Int? = nil, targetPosition: Int) {
+            self.sourcePosition = sourcePosition
+            self.targetPosition = targetPosition
+        }
     }
     
 }
@@ -127,6 +131,16 @@ extension SequenceDebugView {
         return createDebugView(from: Array(pairs))
     }
     
+    public func prefix(_ maxLength: Int) -> SequenceDebugView<[S.Element]> {
+        let pairs = sequence.enumerated().prefix(maxLength)
+        return createDebugView(param: String(maxLength), from: Array(pairs))
+    }
+    
+    public func suffix(_ maxLength: Int) -> SequenceDebugView<[S.Element]> {
+        let pairs = sequence.enumerated().suffix(maxLength)
+        return createDebugView(param: String(maxLength), from: Array(pairs))
+    }
+    
     public func dropLast(_ n: Int = 1) -> SequenceDebugView<[S.Element]> {
         let pairs = sequence.enumerated().dropLast(n)
         return createDebugView(param: n == 1 ? "" : String(n), from: Array(pairs))
@@ -152,6 +166,37 @@ extension SequenceDebugView {
         return ValueDebugView(result, transformations: transformations + [entry])
     }
     
+    public func reduce<Result: Sequence>(_ initialResult: Result, _ nextPartialResult: (Result, S.Element) throws -> Result) rethrows -> SequenceDebugView<Result> {
+        let result = try sequence.reduce(initialResult, nextPartialResult)
+        let entry = DebugViewTransformation(sourceValues: sequence, edges: [])
+        return SequenceDebugView<Result>(result, transformations: transformations + [entry])
+    }
+    
+    public func contains(where predicate: (S.Element) throws -> Bool) rethrows -> ValueDebugView<Bool> {
+        let sourcePosition = try sequence.enumerated().first(where: { try predicate($0.element) })?.offset
+        let edges: [DebugViewTransformation.Edge]
+        if let sourcePosition = sourcePosition {
+            edges = [DebugViewTransformation.Edge(sourcePosition: sourcePosition, targetPosition: 0)]
+        } else {
+            edges = sequence.enumerated().lazy.map { DebugViewTransformation.Edge(sourcePosition: $0.offset, targetPosition: 0) }
+        }
+        let transformation = DebugViewTransformation(sourceValues: sequence, edges: edges)
+        return ValueDebugView(sourcePosition != nil, transformations: transformations + [transformation])
+    }
+    
+    public func max(by areInIncreasingOrder: (S.Element, S.Element) throws -> Bool) rethrows -> ValueDebugView<S.Element?> {
+        let maxValue = try sequence.enumerated().max(by: { try areInIncreasingOrder($0.element, $1.element) })
+        let edges = [DebugViewTransformation.Edge(sourcePosition: maxValue?.offset, targetPosition: 0)]
+        let transformation = DebugViewTransformation(sourceValues: sequence, edges: edges)
+        return ValueDebugView(maxValue?.element, transformations: transformations + [transformation])
+    }
+    
+    func min(by areInIncreasingOrder: (S.Element, S.Element) throws -> Bool) rethrows -> ValueDebugView<S.Element?> {
+        let minValue = try sequence.enumerated().min(by: { try areInIncreasingOrder($0.element, $1.element) })
+        let edges = [DebugViewTransformation.Edge(sourcePosition: minValue?.offset, targetPosition: 0)]
+        let transformation = DebugViewTransformation(sourceValues: sequence, edges: edges)
+        return ValueDebugView(minValue?.element, transformations: transformations + [transformation])
+    }
 }
 
 extension SequenceDebugView where S.Element: Hashable {
@@ -183,6 +228,19 @@ extension SequenceDebugView where S.Element: Comparable {
     public func sorted() -> SequenceDebugView<[S.Element]> {
         return sorted(by: <)
     }
+    public func max() -> ValueDebugView<S.Element?> {
+        return max(by: <)
+    }
+    
+    public func min() -> ValueDebugView<S.Element?> {
+        return min(by: <)
+    }
+}
+
+extension SequenceDebugView where S.Element: Equatable {
+    public func contains(_ element: S.Element) -> ValueDebugView<Bool> {
+        return contains(where: { $0 == element })
+    }
 }
 
 extension SequenceDebugView where S: Collection {
@@ -190,6 +248,12 @@ extension SequenceDebugView where S: Collection {
         let value = sequence.first
         let entry = DebugViewTransformation(sourceValues: sequence, edges: [DebugViewTransformation.Edge(sourcePosition: value.map { _ in 0 }, targetPosition: 0)])
         return ValueDebugView(value, transformations: transformations + [entry])
+    }
+}
+
+extension SequenceDebugView where S: RandomAccessCollection {
+    public var indices: SequenceDebugView<[S.Index]> {
+        return createDebugView(from: Array(sequence.indices.enumerated()))
     }
 }
 

@@ -22,6 +22,12 @@ Currently the following operations are supported:
  * dropFirst
  * drop(while:)
  * prefix(while:)
+ * prefix(maxLength:)
+ * suffix(maxLength:)
+ * contains(where:)
+ * contains(element:)
+ * max
+ * min
  * reversed
  
  */
