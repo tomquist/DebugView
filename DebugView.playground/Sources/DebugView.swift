@@ -199,6 +199,46 @@ extension SequenceDebugView {
     }
 }
 
+extension SequenceDebugView where S: Collection {
+    public func suffix(from start: S.Index) -> SequenceDebugView<[S.Element]> {
+        let distance = Int(clamping: sequence.distance(from: sequence.startIndex, to: start))
+        let pairs = Array(zip(distance..., sequence.suffix(from: start)))
+        return createDebugView(from: pairs)
+    }
+}
+
+extension SequenceDebugView where S.Element: Sequence {
+    public func joined<Separator: Sequence>(separator: Separator) -> SequenceDebugView<[S.Element.Element]> where Separator.Element == S.Element.Element {
+        var result: [S.Element.Element] = []
+        var edges: [DebugViewTransformation.Edge] = []
+        var iterator = sequence.makeIterator()
+        var previous = iterator.next()
+        var pos = 0
+        while let next = iterator.next() {
+            let startPos = result.count
+            result.append(contentsOf: previous!)
+            let endPos = result.count
+            edges.append(contentsOf: (startPos..<endPos).map { DebugViewTransformation.Edge(sourcePosition: pos, targetPosition: $0) })
+            result.append(contentsOf: separator)
+            
+            previous = next
+            pos += 1
+        }
+        if let previous = previous {
+            let startPos = result.count
+            result.append(contentsOf: previous)
+            let endPos = result.count
+            edges.append(contentsOf: (startPos..<endPos).map { DebugViewTransformation.Edge(sourcePosition: pos, targetPosition: $0) })
+        }
+        let transformation = DebugViewTransformation(sourceValues: sequence, edges: edges)
+        return SequenceDebugView<[S.Element.Element]>(result, transformations: transformations + [transformation])
+    }
+    
+    public func joined() -> SequenceDebugView<[S.Element.Element]> {
+        return joined(separator: EmptyCollection())
+    }
+}
+
 extension SequenceDebugView where S.Element: Hashable {
     public func unique() -> SequenceDebugView<[S.Element]> {
         var seen: [S.Element: Int] = [:]

@@ -23,11 +23,14 @@ Currently the following operations are supported:
  * prefix(while:)
  * prefix(maxLength:)
  * suffix(maxLength:)
+ * suffix(from:)
  * contains(where:)
  * contains(element:)
  * max
  * min
  * reversed
+ * joined
+ * joined(separator:)
 
 ## Demo
 
