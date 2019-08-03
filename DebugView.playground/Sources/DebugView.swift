@@ -106,7 +106,7 @@ extension SequenceDebugView {
     }
     
     public func flatMap<T>(_ transform: (S.Element) throws -> T?) rethrows -> SequenceDebugView<[T]> {
-        let pairs = try sequence.enumerated().flatMap { item in try transform(item.element).map { (item.offset, $0) } }
+        let pairs = try sequence.enumerated().compactMap { item in try transform(item.element).map { (item.offset, $0) } }
         return createDebugView(from: pairs)
     }
     
